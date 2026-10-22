@@ -181,10 +181,14 @@ button{touch-action:manipulation}
  textarea.big{min-height:180px}
 }
 @media(max-width:380px){.f{grid-template-columns:1fr}.hx .b button{min-width:24px}}
+
+#tab{touch-action:none;user-select:none;-webkit-user-select:none;transition:left .2s,top .2s}
+#tab.drag{transition:none;opacity:.85;cursor:grabbing}
+@media(max-width:700px){#tab{right:auto;left:calc(12px + env(safe-area-inset-left,0px));cursor:grab}}
 </style>
 </head>
 <body>
-<button id="tab" onclick="mn()">☰ MENU</button>
+<button id="tab" aria-label="Abrir menu">☰ MENU</button>
 <aside id="mn" aria-label="Menu">
  <div style="display:flex;justify-content:space-between;align-items:center"><b style="letter-spacing:.2em">MENU</b><button onclick="mn()">✕</button></div>
  <h3>Tema</h3><div class="sw" id="sw"></div>
@@ -199,7 +203,7 @@ button{touch-action:manipulation}
  <h3>Rolador livre</h3>
  <div class="mb"><input id="fr" value="1d20" style="width:110px" placeholder="2d8+3"><button onclick="free()">🎲 Rolar</button></div><div id="fro"></div>
  <h3>Ficha</h3>
- <div class="mb"><button onclick="S.pv.c=S.pv.m;S.pd.c=S.pd.m;draw()">Descanso (PV/PD cheios)</button><button onclick="S.falls={pv:0,pd:0};draw()">Zerar DT de queda</button><button onclick="$('log').innerHTML=''">Limpar histórico</button><button onclick="U.th='sangue';U.z=1;U.flat=false;U.fx=true;U.por=true;ui()">Resetar visual</button></div>
+ <div class="mb"><button onclick="S.pv.c=S.pv.m;S.pd.c=S.pd.m;draw()">Descanso (PV/PD cheios)</button><button onclick="S.falls={pv:0,pd:0};draw()">Zerar DT de queda</button><button onclick="$('log').innerHTML=''">Limpar histórico</button><button onclick="U.th='sangue';U.z=1;U.flat=false;U.fx=true;U.por=true;U.tp=null;ui()">Resetar visual</button></div>
 </aside>
 <div class="wrap">
 <div class="tools">
@@ -370,6 +374,25 @@ document.addEventListener('keydown',e=>{if(e.key=='Escape')$('mn').classList.rem
 function free(){const m=$('fr').value.match(/^\s*(\d*)d(\d+)\s*([+-]\s*\d+)?\s*$/i);if(!m){$('fro').textContent='Use o formato 2d8+3';return}
  const q=Math.min(50,+m[1]||1),z=+m[2],b=m[3]?+m[3].replace(/\s/g,''):0,v=Array.from({length:q},()=>r1(z)),t=v.reduce((a,c)=>a+c,0)+b;
  const txt=`${q}d${z}${b?(b>0?'+':'')+b:''}: [${v.join(', ')}] = ${t}`;$('fro').textContent=txt;say(`<div>${txt.replace(/= (\d+)$/,'= <em>$1</em>')}</div>`)}
+const tab=$('tab'),mob=()=>matchMedia('(max-width:700px)').matches;
+function applyTab(){const s=tab.style;
+ if(!mob()||!U.tp){s.left=s.top=s.right=s.bottom='';return}
+ const w=tab.offsetWidth,h=tab.offsetHeight,m=12;
+ s.right='auto';s.bottom='auto';s.left=(U.tp.s=='r'?innerWidth-w-m:m)+'px';
+ s.top=Math.max(m,Math.min(innerHeight-h-m,U.tp.y*innerHeight))+'px'}
+let dr=null;
+tab.addEventListener('pointerdown',e=>{dr={x:e.clientX,y:e.clientY,l:tab.offsetLeft,t:tab.offsetTop,mv:false};tab.setPointerCapture(e.pointerId)});
+tab.addEventListener('pointermove',e=>{if(!dr)return;const dx=e.clientX-dr.x,dy=e.clientY-dr.y;
+ if(!dr.mv&&Math.hypot(dx,dy)>8&&mob())dr.mv=true;
+ if(dr.mv){tab.classList.add('drag');const s=tab.style;s.right='auto';s.bottom='auto';
+  s.left=Math.max(0,Math.min(innerWidth-tab.offsetWidth,dr.l+dx))+'px';s.top=Math.max(0,Math.min(innerHeight-tab.offsetHeight,dr.t+dy))+'px'}});
+const endTab=e=>{if(!dr)return;const d=dr;dr=null;tab.classList.remove('drag');
+ if(d.mv){const c=tab.offsetLeft+tab.offsetWidth/2;U.tp={s:c<innerWidth/2?'l':'r',y:tab.offsetTop/innerHeight};persist();applyTab()}
+ else if(e.type=='pointerup')mn()};
+tab.addEventListener('pointerup',endTab);tab.addEventListener('pointercancel',endTab);
+tab.addEventListener('click',e=>{if(e.detail===0)mn()});
+addEventListener('resize',applyTab);
+const _ui=ui;ui=function(){_ui();applyTab()};
 ui();
 draw();
 </script>
